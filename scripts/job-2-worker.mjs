@@ -208,7 +208,7 @@ function sentenceNotes(segment) {
     .map((sentence) => `${sentence} @${offset}`);
 }
 
-function extractMemoNotes(payload) {
+function extractMemoEntries(payload) {
   const candidates = [
     payload?.notes,
     payload?.memos,
@@ -218,14 +218,25 @@ function extractMemoNotes(payload) {
     payload?.items,
   ];
   const list = candidates.find(Array.isArray);
-  if (list) {
-    return list
-      .map((item) => (typeof item === "string" ? item : item?.text ?? item?.note ?? ""))
-      .filter(Boolean);
-  }
+  if (list) return list;
   const text = typeof payload?.text === "string" ? payload.text : "";
   if (text) return text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return [];
+}
+
+function memoHasNote(entry, expected) {
+  if (typeof entry === "string") return entry === expected;
+  if (!entry || typeof entry !== "object") return false;
+  if (entry.text === expected) return true;
+  const match = expected.match(/ @(\d+:\d{2})$/);
+  return Boolean(
+    match &&
+      entry.at === `@${match[1]}` &&
+      entry.chars === expected.length &&
+      typeof entry.text === "string" &&
+      entry.text.length > 0 &&
+      expected.startsWith(entry.text),
+  );
 }
 
 function encryptPayload(payload) {
@@ -307,19 +318,12 @@ async function runJob() {
     throw new Error("A generated note did not end with exactly one @m:ss offset");
   }
 
-  for (const text of notes) {
-    const written = await callTool("memo_write", { text, step });
-    step = written?.step;
-    mask(step);
-    if (!step) throw new Error("memo_write returned no step token");
-  }
-
   let search = await callTool("memo_search", { step });
   step = search?.step;
   mask(step);
   if (!step) throw new Error("memo_search returned no step token");
-  let stored = extractMemoNotes(search);
-  let missing = notes.filter((note) => !stored.includes(note));
+  let stored = extractMemoEntries(search);
+  let missing = notes.filter((note) => !stored.some((entry) => memoHasNote(entry, note)));
   if (missing.length > 0) {
     for (const text of missing) {
       const written = await callTool("memo_write", { text, step });
@@ -331,8 +335,8 @@ async function runJob() {
     step = search?.step;
     mask(step);
     if (!step) throw new Error("memo_search returned no step token after repair");
-    stored = extractMemoNotes(search);
-    missing = notes.filter((note) => !stored.includes(note));
+    stored = extractMemoEntries(search);
+    missing = notes.filter((note) => !stored.some((entry) => memoHasNote(entry, note)));
   }
   if (missing.length > 0) throw new Error("memo_search still misses one or more findings");
 
