@@ -184,7 +184,8 @@ function offsetSeconds(offset) {
 }
 
 function formatOffset(segment) {
-  const raw = segment?.offset ?? segment?.start ?? segment?.startOffset ?? segment?.time;
+  const raw =
+    segment?.offset ?? segment?.start ?? segment?.startOffset ?? segment?.at ?? segment?.time;
   const seconds = offsetSeconds(raw);
   if (!Number.isFinite(seconds) || seconds < 0) {
     throw new Error("Transcription segment has no usable offset");
