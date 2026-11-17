@@ -1,0 +1,23 @@
+name: S02E04 remote job 2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  voice-to-memo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the worker
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Run job 2 on its course MCP endpoint
+        env:
+          MEGA_JOB_2_MCP_URL: ${{ secrets.MEGA_JOB_2_MCP_URL }}
+        run: node scripts/job-2-worker.mjs
